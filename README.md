@@ -1,9 +1,9 @@
-### What is `t721token` ?
+### What is `t721admin` ?
 
-`t721token` is the contract pegged to fiat. It is issued by T721 upon credit card payment.
+`t721admin` is a contract able to issue t721tokens and help recover refract accounts
 
 ### Status
 
 | Service | Status |
 | :---: | :---: |
-| Coveralls | [![coverage status](https://coveralls.io/repos/github/ticket721/t721token/badge.svg?branch=develop)](https://coveralls.io/github/ticket721/t721token?branch=develop) |
+| Coveralls | [![coverage status](https://coveralls.io/repos/github/ticket721/t721admin/badge.svg?branch=develop)](https://coveralls.io/github/ticket721/t721admin?branch=develop) |
