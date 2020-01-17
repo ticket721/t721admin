@@ -2,6 +2,11 @@ pragma solidity 0.5.15;
 
 contract T721Admin {
 
+    uint256 constant OPERATION_CREATE = 1;
+    uint256 constant OPERATION_CALL = 0;
+    uint256 public staticGasCost;
+    uint256 public deployStaticGasCost;
+
     struct Vote {
         uint256 reason;
         address target;
@@ -19,6 +24,7 @@ contract T721Admin {
     event NewVote(address indexed target, uint256 indexed reason, uint256 idx);
     event NewAdmin(address indexed admin);
     event ByeAdmin(address indexed admin);
+    event ContractCreated(address indexed contractAddress);
 
     function _addAdmin(address _admin) internal {
 
@@ -39,13 +45,16 @@ contract T721Admin {
         emit ByeAdmin(_admin);
     }
 
-    constructor(address[] memory _admins) public {
+    constructor(address[] memory _admins, uint256 _staticGasCost, uint256 _deployStaticGasCost) public {
 
         for (uint256 idx = 0; idx < _admins.length; ++idx) {
             _addAdmin(_admins[idx]);
         }
 
         version = 0;
+
+        staticGasCost = _staticGasCost;
+        deployStaticGasCost = _deployStaticGasCost;
     }
 
     function isAdmin(address _admin) public view returns (bool) {
@@ -114,5 +123,84 @@ contract T721Admin {
         }
 
     }
+
+    function refundedExecute(uint256 _operationType, address _to, uint256 _value, bytes calldata _data)
+    external
+    onlyAdmin
+    {
+
+        uint startGas = gasleft();
+
+        if (_operationType == OPERATION_CALL) {
+
+            if (executeCall(_to, _value, _data) == false) {
+                revert("T721Admin::refundedExecute | call reverted");
+            }
+
+        } else if (_operationType == OPERATION_CREATE) {
+
+            address newContract = executeCreate(_data);
+            emit ContractCreated(newContract);
+
+        } else {
+
+            revert("T721Admin::refundedExecute | invalid operation type");
+
+        }
+
+        uint gasUsed = startGas - gasleft();
+        msg.sender.transfer((gasUsed + staticGasCost + deployStaticGasCost * _operationType) * tx.gasprice);
+
+    }
+
+    function execute(uint256 _operationType, address _to, uint256 _value, bytes calldata _data)
+    external
+    onlyAdmin
+    {
+
+        if (_operationType == OPERATION_CALL) {
+
+            if (executeCall(_to, _value, _data) == false) {
+                revert("T721Admin::execute | call reverted");
+            }
+
+        } else if (_operationType == OPERATION_CREATE) {
+
+            address newContract = executeCreate(_data);
+            emit ContractCreated(newContract);
+
+        } else {
+
+            revert("T721Admin::execute | invalid operation type");
+
+        }
+
+    }
+
+    // copied from GnosisSafe
+    // https://github.com/gnosis/safe-contracts/blob/v0.0.2-alpha/contracts/base/Executor.sol
+    function executeCall(address to, uint256 value, bytes memory data)
+    internal
+    returns (bool success)
+    {
+        // solium-disable-next-line security/no-inline-assembly
+        assembly {
+            success := call(gas, to, value, add(data, 0x20), mload(data), 0, 0)
+        }
+    }
+
+    // copied from GnosisSafe
+    // https://github.com/gnosis/safe-contracts/blob/v0.0.2-alpha/contracts/base/Executor.sol
+    function executeCreate(bytes memory data)
+    internal
+    returns (address newContract)
+    {
+        // solium-disable-next-line security/no-inline-assembly
+        assembly {
+            newContract := create(0, add(data, 0x20), mload(data))
+        }
+    }
+
+    function() external payable onlyAdmin {}
 
 }

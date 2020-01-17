@@ -18,6 +18,16 @@ const {addAdmin_zero_addr} = require('../test_cases/addAdmin_zero_addr');
 const {addAdmin_vote_false} = require('../test_cases/addAdmin_vote_false');
 const {addAdmin_not_admin_sender} = require('../test_cases/addAdmin_not_admin_sender');
 
+const {refundedExecute} = require('../test_cases/refundedExecute');
+const {refundedExecute_revert} = require('../test_cases/refundedExecute_revert');
+const {refundedExecute_deploy} = require('../test_cases/refundedExecute_deploy');
+const {refundedExecute_invalid_operation} = require('../test_cases/refundedExecute_invalid_operation');
+
+const {execute} = require('../test_cases/execute');
+const {execute_revert} = require('../test_cases/execute_revert');
+const {execute_deploy} = require('../test_cases/execute_deploy');
+const {execute_invalid_operation} = require('../test_cases/execute_invalid_operation');
+
 contract('T721Admin', (accounts) => {
 
     before(async function () {
@@ -25,8 +35,13 @@ contract('T721Admin', (accounts) => {
         const T721AdminArtifact = artifacts.require(T721A_CONTRACT_NAME);
         const T721AdminInstance = await T721AdminArtifact.deployed();
 
+        const DummyArtifact = artifacts.require('Dummy');
+        const DummyInstance = await DummyArtifact.deployed();
+
         this.contracts = {
             [T721A_CONTRACT_NAME]: T721AdminInstance,
+            'Dummy': DummyInstance,
+            'DummyArtifact': DummyArtifact,
         };
 
         this.snap_id = await snapshot();
@@ -55,5 +70,19 @@ contract('T721Admin', (accounts) => {
         it('modifier owner check', addAdmin_not_admin_sender);
 
     });
+
+    describe('Relay', function () {
+
+        it('run inc with refundedExecute', refundedExecute);
+        it('run ko with refundedExecute', refundedExecute_revert);
+        it('deploy dummy with refundedExecute', refundedExecute_deploy);
+        it('uses an invalid operation type', refundedExecute_invalid_operation);
+        
+        it('run inc with execute', execute);
+        it('run ko with execute', execute_revert);
+        it('deploy dummy with execute', execute_deploy);
+        it('uses an invalid operation type', execute_invalid_operation);
+
+    })
 
 });
