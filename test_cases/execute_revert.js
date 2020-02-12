@@ -12,6 +12,6 @@ module.exports = {
 
         await web3.eth.sendTransaction({from: accounts[0], to: T721Admin.address, value: web3.utils.toWei('1', 'ether')});
 
-        await expect(T721Admin.execute(0, Dummy.address, 0, data, {gasPrice: 1000000000000})).to.eventually.be.rejectedWith('T721Admin::execute | call reverted');
+        await expect(T721Admin.execute(0, Dummy.address, 0, data, {gasPrice: 1000000000000})).to.eventually.be.rejectedWith('This error is expected');
     }
 };

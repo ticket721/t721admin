@@ -133,9 +133,7 @@ contract T721Admin {
 
         if (_operationType == OPERATION_CALL) {
 
-            if (executeCall(_to, _value, _data) == false) {
-                revert("T721Admin::refundedExecute | call reverted");
-            }
+            executeCall(_to, _value, _data);
 
         } else if (_operationType == OPERATION_CREATE) {
 
@@ -160,9 +158,7 @@ contract T721Admin {
 
         if (_operationType == OPERATION_CALL) {
 
-            if (executeCall(_to, _value, _data) == false) {
-                revert("T721Admin::execute | call reverted");
-            }
+            executeCall(_to, _value, _data);
 
         } else if (_operationType == OPERATION_CREATE) {
 
@@ -181,11 +177,18 @@ contract T721Admin {
     // https://github.com/gnosis/safe-contracts/blob/v0.0.2-alpha/contracts/base/Executor.sol
     function executeCall(address to, uint256 value, bytes memory data)
     internal
-    returns (bool success)
     {
         // solium-disable-next-line security/no-inline-assembly
         assembly {
-            success := call(gas, to, value, add(data, 0x20), mload(data), 0, 0)
+            let message := mload(0x40)
+
+            let result := call(gas, to, value, add(data, 0x20), mload(data), 0, 0)
+
+            let size := returndatasize
+
+            returndatacopy(message, 0, size)
+
+            if eq(result, 0) { revert(message, size) }
         }
     }
 
