@@ -1,4 +1,5 @@
 pragma solidity 0.5.15;
+import "./IT721Token.sol";
 
 contract T721Admin {
 
@@ -6,6 +7,8 @@ contract T721Admin {
     uint256 constant OPERATION_CALL = 0;
     uint256 public staticGasCost;
     uint256 public deployStaticGasCost;
+    uint256 public mintingStaticGasCost;
+    address public t721Token;
 
     struct Vote {
         uint256 reason;
@@ -45,7 +48,13 @@ contract T721Admin {
         emit ByeAdmin(_admin);
     }
 
-    constructor(address[] memory _admins, uint256 _staticGasCost, uint256 _deployStaticGasCost) public {
+    constructor(
+        address[] memory _admins,
+        uint256 _staticGasCost,
+        uint256 _deployStaticGasCost,
+        address _t721Token,
+        uint256 _mintingStaticGasCost
+    ) public {
 
         for (uint256 idx = 0; idx < _admins.length; ++idx) {
             _addAdmin(_admins[idx]);
@@ -55,6 +64,17 @@ contract T721Admin {
 
         staticGasCost = _staticGasCost;
         deployStaticGasCost = _deployStaticGasCost;
+        mintingStaticGasCost = _mintingStaticGasCost;
+        t721Token = _t721Token;
+    }
+
+    function mintFor(address _recipient, uint256 _amount) onlyAdmin public {
+        IT721Token(t721Token).mintFor(_recipient, _amount);
+    }
+
+    function refundedMintFor(address _recipient, uint256 _amount) onlyAdmin public {
+        IT721Token(t721Token).mintFor(_recipient, _amount);
+        msg.sender.transfer(mintingStaticGasCost * tx.gasprice);
     }
 
     function isAdmin(address _admin) public view returns (bool) {
