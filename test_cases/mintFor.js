@@ -8,7 +8,8 @@ module.exports = {
         const T721Admin = this.contracts[T721A_CONTRACT_NAME];
         const T721Token = this.contracts[T721T_CONTRACT_NAME];
 
-        await T721Admin.mintFor(accounts[1], 100, {from: accounts[0]});
+        await T721Admin.addMinter(accounts[1]);
+        await T721Admin.mintFor(accounts[1], 100, {from: accounts[1]});
 
         const balance = await T721Token.balanceOf(accounts[1]);
 
