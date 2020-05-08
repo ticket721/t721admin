@@ -10,5 +10,7 @@ module.exports = {
         await expect(T721Admin.isAdmin(accounts[0])).to.eventually.equal(true);
         await expect(T721Admin.isAdmin(accounts[1])).to.eventually.equal(false);
 
+        await expect(T721Admin.isMinter(accounts[0])).to.eventually.equal(true);
+        await expect(T721Admin.isMinter(accounts[1])).to.eventually.equal(false);
     }
 };

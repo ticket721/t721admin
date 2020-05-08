@@ -37,50 +37,18 @@ module.exports = async function(deployer, networkName, accounts) {
 
     }
 
-    const staticGasCost = 32808 + 63;
-    let mintingStaticGasCost = 69516 + 6700;
-    let deployStaticGasCost = 32768;
+    let initialAdmins = [];
+    let initialMinters = [];
 
-    if (networkName === 'soliditycoverage') {
-        deployStaticGasCost += 0;//32768;
-        mintingStaticGasCost += 703;
+    if (config.args) {
+        initialAdmins = config.args.initialAdmins;
+        initialMinters = config.args.initialMinters;
     }
 
-    if (process.env.GITHUB_SHA) {
-        mintingStaticGasCost -= 45;
-    }
-
-    let extra_admins = [];
-    if (config.networks[networkName].t721config && config.networks[networkName].t721config.dev) {
-
-        extra_admins = config.networks[networkName].t721config.dev.extraAdmins;
-        const value = config.networks[networkName].t721config.dev.extraAdminsEth;
-        for (const admin of extra_admins) {
-            await web3.eth.sendTransaction({
-                from: accounts[0],
-                to: admin,
-                value: web3.utils.toWei(value, 'ether')
-            });
-            console.log(`Credited Extra Admin ${admin} with ${value} ETH`);
-        }
-
-    }
-
-    await deployer.deploy(T721Admin, [accounts[0], ...extra_admins], staticGasCost, deployStaticGasCost, tokenAddress, mintingStaticGasCost);
-
-    if (config.networks[networkName].t721config && config.networks[networkName].t721config.dev) {
-
-        const T721AdminInstance = await T721Admin.deployed();
-        const value = config.networks[networkName].t721config.dev.t721adminFunds;
-
-        await web3.eth.sendTransaction({
-            from: accounts[0],
-            to: T721AdminInstance.address,
-            value: web3.utils.toWei(value, 'ether'),
-        });
-
-        console.log(`Credited T721Admin with ${value} ETH`);
-
+    if (['test', 'soliditycoverage'].indexOf(networkName) !== -1) {
+        await deployer.deploy(T721Admin, [accounts[0]], [accounts[0]], tokenAddress);
+    } else {
+        await deployer.deploy(T721Admin, [accounts[0], ...initialAdmins], initialMinters, tokenAddress);
     }
 
     if (['test', 'soliditycoverage'].indexOf(networkName) !== -1) {

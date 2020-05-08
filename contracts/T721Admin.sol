@@ -3,11 +3,6 @@ import "./IT721Token.sol";
 
 contract T721Admin {
 
-    uint256 constant OPERATION_CREATE = 1;
-    uint256 constant OPERATION_CALL = 0;
-    uint256 public staticGasCost;
-    uint256 public deployStaticGasCost;
-    uint256 public mintingStaticGasCost;
     address public t721Token;
 
     struct Vote {
@@ -21,12 +16,16 @@ contract T721Admin {
 
     mapping (address => bool) adminMapping;
     uint256 public adminCount;
+    mapping (address => bool) minterMapping;
+    uint256 public minterCount;
     uint256 public version;
     Vote[] public votes;
 
     event NewVote(address indexed target, uint256 indexed reason, uint256 idx);
     event NewAdmin(address indexed admin);
     event ByeAdmin(address indexed admin);
+    event NewMinter(address indexed minter);
+    event ByeMinter(address indexed minter);
     event ContractCreated(address indexed contractAddress);
 
     function _addAdmin(address _admin) internal {
@@ -47,45 +46,76 @@ contract T721Admin {
 
         emit ByeAdmin(_admin);
     }
+    
+    function _addMinter(address _minter) internal {
+
+        minterMapping[_minter] = true;
+        minterCount += 1;
+        version += 1;
+
+        emit NewMinter(_minter);
+
+    }
+
+    function _rmMinter(address _minter) internal {
+
+        minterMapping[_minter] = false;
+        minterCount -= 1;
+        version += 1;
+
+        emit ByeMinter(_minter);
+    }
 
     constructor(
         address[] memory _admins,
-        uint256 _staticGasCost,
-        uint256 _deployStaticGasCost,
-        address _t721Token,
-        uint256 _mintingStaticGasCost
+        address[] memory _minters,
+        address _t721Token
     ) public {
 
         for (uint256 idx = 0; idx < _admins.length; ++idx) {
             _addAdmin(_admins[idx]);
         }
 
-        version = 0;
+        for (uint256 idx = 0; idx < _minters.length; ++idx) {
+            _addMinter(_minters[idx]);
+        }
 
-        staticGasCost = _staticGasCost;
-        deployStaticGasCost = _deployStaticGasCost;
-        mintingStaticGasCost = _mintingStaticGasCost;
+        version = 0;
         t721Token = _t721Token;
     }
 
-    function mintFor(address _recipient, uint256 _amount) onlyAdmin public {
+    function mintFor(address _recipient, uint256 _amount) onlyMinter public {
         IT721Token(t721Token).mintFor(_recipient, _amount);
-    }
-
-    function refundedMintFor(address _recipient, uint256 _amount) onlyAdmin public {
-        IT721Token(t721Token).mintFor(_recipient, _amount);
-        msg.sender.transfer(mintingStaticGasCost * tx.gasprice);
     }
 
     function isAdmin(address _admin) public view returns (bool) {
         return adminMapping[_admin];
     }
+    
+    function isMinter(address _minter) public view returns (bool) {
+        return minterMapping[_minter];
+    }
 
+    modifier onlyMinter() {
+        require(minterMapping[msg.sender] == true, "T721Admin::onlyMinter | sender is not minter");
+        _;
+    }
+    
     modifier onlyAdmin() {
         require(adminMapping[msg.sender] == true, "T721Admin::onlyAdmin | sender is not admin");
         _;
     }
 
+    function addMinter(address _minter) public onlyAdmin {
+        require(isMinter(_minter) == false, "T721Admin::addMinter | address is already minter");
+        _addMinter(_minter);
+    }
+
+    function rmMinter(address _minter) public onlyAdmin {
+        require(isMinter(_minter) == true, "T721Admin::rmMinter | address is not minter");
+        _rmMinter(_minter);
+    }
+    
     function addAdmin(address _admin) public onlyAdmin {
 
         require(isAdmin(_admin) == false, "T721Admin::addAdmin | address is already admin");
@@ -118,15 +148,15 @@ contract T721Admin {
         emit NewVote(_admin, 2, idx);
     }
 
-    function vote(uint256 idx, bool vote) public onlyAdmin {
+    function vote(uint256 idx, bool _vote) public onlyAdmin {
 
         require(votes.length > idx, "T721Admin::vote | invalid vote index");
         require(votes[idx].version == version, "T721Admin::vote | outdated vote");
-        require(votes[idx].voters[msg.sender] != 1 + (vote == true ? 1 : 0), "T721Admin::vote | useless vote");
+        require(votes[idx].voters[msg.sender] != 1 + (_vote == true ? 1 : 0), "T721Admin::vote | useless vote");
 
-        votes[idx].yes += 0 + (vote == true ? 1 : 0);
-        votes[idx].no += 0 + (vote == false ? 1 : 0);
-        votes[idx].voters[msg.sender] = 1 + (vote == true ? 1 : 0);
+        votes[idx].yes += 0 + (_vote == true ? 1 : 0);
+        votes[idx].no += 0 + (_vote == false ? 1 : 0);
+        votes[idx].voters[msg.sender] = 1 + (_vote == true ? 1 : 0);
 
         if ((votes[idx].yes * 100) / adminCount >= 50) {
 
@@ -143,87 +173,5 @@ contract T721Admin {
         }
 
     }
-
-    function refundedExecute(uint256 _operationType, address _to, uint256 _value, bytes calldata _data)
-    external
-    onlyAdmin
-    {
-
-        uint startGas = gasleft();
-
-        if (_operationType == OPERATION_CALL) {
-
-            executeCall(_to, _value, _data);
-
-        } else if (_operationType == OPERATION_CREATE) {
-
-            address newContract = executeCreate(_data);
-            emit ContractCreated(newContract);
-
-        } else {
-
-            revert("T721Admin::refundedExecute | invalid operation type");
-
-        }
-
-        uint gasUsed = startGas - gasleft();
-        msg.sender.transfer((gasUsed + staticGasCost + deployStaticGasCost * _operationType) * tx.gasprice);
-
-    }
-
-    function execute(uint256 _operationType, address _to, uint256 _value, bytes calldata _data)
-    external
-    onlyAdmin
-    {
-
-        if (_operationType == OPERATION_CALL) {
-
-            executeCall(_to, _value, _data);
-
-        } else if (_operationType == OPERATION_CREATE) {
-
-            address newContract = executeCreate(_data);
-            emit ContractCreated(newContract);
-
-        } else {
-
-            revert("T721Admin::execute | invalid operation type");
-
-        }
-
-    }
-
-    // copied from GnosisSafe
-    // https://github.com/gnosis/safe-contracts/blob/v0.0.2-alpha/contracts/base/Executor.sol
-    function executeCall(address to, uint256 value, bytes memory data)
-    internal
-    {
-        // solium-disable-next-line security/no-inline-assembly
-        assembly {
-            let message := mload(0x40)
-
-            let result := call(gas, to, value, add(data, 0x20), mload(data), 0, 0)
-
-            let size := returndatasize
-
-            returndatacopy(message, 0, size)
-
-            if eq(result, 0) { revert(message, size) }
-        }
-    }
-
-    // copied from GnosisSafe
-    // https://github.com/gnosis/safe-contracts/blob/v0.0.2-alpha/contracts/base/Executor.sol
-    function executeCreate(bytes memory data)
-    internal
-    returns (address newContract)
-    {
-        // solium-disable-next-line security/no-inline-assembly
-        assembly {
-            newContract := create(0, add(data, 0x20), mload(data))
-        }
-    }
-
-    function() external payable onlyAdmin {}
 
 }
