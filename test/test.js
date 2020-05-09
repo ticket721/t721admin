@@ -26,8 +26,10 @@ const { rmMinter } = require('../test_cases/rmMinter');
 const { rmMinter_not_minter } = require('../test_cases/rmMinter_not_minter');
 const { rmMinter_not_admin } = require('../test_cases/rmMinter_not_admin');
 
-const { mintFor } = require('../test_cases/mintFor');
-const { mintFor_not_minter } = require('../test_cases/mintFor_not_minter');
+const { redeemTokens } = require('../test_cases/redeemTokens');
+const { redeemTokens_signature_not_minter } = require('../test_cases/redeemTokens_signature_not_minter');
+const { redeemTokens_invalid_signature } = require('../test_cases/redeemTokens_invalid_signature');
+const { redeemTokens_invalid_code } = require('../test_cases/redeemTokens_invalid_code');
 
 contract('T721Admin', (accounts) => {
 
@@ -82,11 +84,12 @@ contract('T721Admin', (accounts) => {
         it('rm minter not minter', rmMinter_not_minter);
     });
 
-    describe('Minting', function() {
+    describe('Redeem', function() {
 
-        it('mintFor', mintFor);
-
-        it('mintFor not minter', mintFor_not_minter);
+        it('should properly mint with valid signature', redeemTokens);
+        it('should fail minting with signature from non minter', redeemTokens_signature_not_minter);
+        it('should fail for invalid signature', redeemTokens_invalid_signature);
+        it('should fail minting with invalid code', redeemTokens_invalid_code);
 
     });
 

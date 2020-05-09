@@ -1,7 +1,8 @@
 pragma solidity 0.5.15;
 import "./IT721Token.sol";
+import "./T721AdminDomain.sol";
 
-contract T721Admin {
+contract T721Admin is T721AdminDomain {
 
     address public t721Token;
 
@@ -14,6 +15,7 @@ contract T721Admin {
         uint256 version;
     }
 
+    mapping (uint256 => bool) codes;
     mapping (address => bool) adminMapping;
     uint256 public adminCount;
     mapping (address => bool) minterMapping;
@@ -27,6 +29,16 @@ contract T721Admin {
     event NewMinter(address indexed minter);
     event ByeMinter(address indexed minter);
     event ContractCreated(address indexed contractAddress);
+    event MintTokens(address indexed recipient, address indexed minter, uint256 amount, uint256 code);
+
+    function isCodeConsumable(uint256 _code) public view returns (bool) {
+        return !codes[_code];
+    }
+
+    function consumeCode(uint256 _code) internal {
+        require(isCodeConsumable(_code), "T721Admin::consumeCode | code already used");
+        codes[_code] = true;
+    }
 
     function _addAdmin(address _admin) internal {
 
@@ -46,7 +58,7 @@ contract T721Admin {
 
         emit ByeAdmin(_admin);
     }
-    
+
     function _addMinter(address _minter) internal {
 
         minterMapping[_minter] = true;
@@ -69,8 +81,9 @@ contract T721Admin {
     constructor(
         address[] memory _admins,
         address[] memory _minters,
-        address _t721Token
-    ) public {
+        address _t721Token,
+        uint256 _chainId
+    ) public T721AdminDomain("T721 Admin", "0", _chainId) {
 
         for (uint256 idx = 0; idx < _admins.length; ++idx) {
             _addAdmin(_admins[idx]);
@@ -84,23 +97,14 @@ contract T721Admin {
         t721Token = _t721Token;
     }
 
-    function mintFor(address _recipient, uint256 _amount) onlyMinter public {
-        IT721Token(t721Token).mintFor(_recipient, _amount);
-    }
-
     function isAdmin(address _admin) public view returns (bool) {
         return adminMapping[_admin];
     }
-    
+
     function isMinter(address _minter) public view returns (bool) {
         return minterMapping[_minter];
     }
 
-    modifier onlyMinter() {
-        require(minterMapping[msg.sender] == true, "T721Admin::onlyMinter | sender is not minter");
-        _;
-    }
-    
     modifier onlyAdmin() {
         require(adminMapping[msg.sender] == true, "T721Admin::onlyAdmin | sender is not admin");
         _;
@@ -115,7 +119,7 @@ contract T721Admin {
         require(isMinter(_minter) == true, "T721Admin::rmMinter | address is not minter");
         _rmMinter(_minter);
     }
-    
+
     function addAdmin(address _admin) public onlyAdmin {
 
         require(isAdmin(_admin) == false, "T721Admin::addAdmin | address is already admin");
@@ -172,6 +176,35 @@ contract T721Admin {
 
         }
 
+    }
+
+    function redeemTokens(
+        address _recipient,
+        uint256 _amount,
+        address _minter,
+        uint256 _code,
+        bytes calldata _signature
+    ) external {
+
+        bytes32 hash = keccak256(
+            abi.encode(
+                "mintTokens",
+                _recipient,
+                _amount,
+                _minter,
+                _code
+            )
+        );
+
+        require(verify(Authorization(_minter, _recipient, hash), _signature) == _minter,
+            "T721Admin::redeemTokens | invalid signature");
+        require(isMinter(_minter) == true, "T721Admin::redeemTokens | signer is not minter");
+
+        consumeCode(_code);
+
+        IT721Token(t721Token).mintFor(_recipient, _amount);
+
+        emit MintTokens(_recipient, _minter, _amount, _code);
     }
 
 }
