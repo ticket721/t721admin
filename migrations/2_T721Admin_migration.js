@@ -17,6 +17,7 @@ const getArtifact = (name) => {
 module.exports = async function(deployer, networkName, accounts) {
 
     let tokenAddress;
+    const network_id = await web3.eth.net.getId();
 
     if (['test', 'soliditycoverage'].indexOf(networkName) !== -1) {
         await deployer.deploy(Dummy);
@@ -26,7 +27,6 @@ module.exports = async function(deployer, networkName, accounts) {
 
         if (hasArtifact('t721token')) {
 
-            const network_id = await web3.eth.net.getId();
             const T721Token = getArtifact('t721token').T721Token;
 
             tokenAddress = T721Token.networks[network_id].address;
@@ -45,10 +45,11 @@ module.exports = async function(deployer, networkName, accounts) {
         initialMinters = config.args.initialMinters;
     }
 
+
     if (['test', 'soliditycoverage'].indexOf(networkName) !== -1) {
-        await deployer.deploy(T721Admin, [accounts[0]], [accounts[0]], tokenAddress);
+        await deployer.deploy(T721Admin, [accounts[0]], [accounts[0]], tokenAddress, network_id);
     } else {
-        await deployer.deploy(T721Admin, [accounts[0], ...initialAdmins], initialMinters, tokenAddress);
+        await deployer.deploy(T721Admin, [accounts[0], ...initialAdmins], initialMinters, tokenAddress, network_id);
     }
 
     if (['test', 'soliditycoverage'].indexOf(networkName) !== -1) {
