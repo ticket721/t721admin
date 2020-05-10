@@ -37,18 +37,30 @@ module.exports = async function(deployer, networkName, accounts) {
 
     }
 
+    if (
+        ['test', 'soliditycoverage'].indexOf(networkName) === -1 &&
+        !hasArtifact('minter_management')
+    ) {
+        throw new Error(`Cannot deploy in live network without minter config`);
+    }
+
+
     let initialAdmins = [];
     let initialMinters = [];
 
-    if (config.args) {
-        initialAdmins = config.args.initialAdmins;
-        initialMinters = config.args.initialMinters;
+    if (hasArtifact('minter_management')) {
+        initialMinters = getArtifact('minter_management').minters;
     }
 
+    if (config.args) {
+        initialAdmins = config.args.initialAdmins;
+    }
 
     if (['test', 'soliditycoverage'].indexOf(networkName) !== -1) {
         await deployer.deploy(T721Admin, [accounts[0]], [accounts[0]], tokenAddress, network_id);
     } else {
+        console.log('Deploying T721 Admin with admins:', [accounts[0], ...initialAdmins]);
+        console.log('Deploying T721 Admin with minters:', initialMinters);
         await deployer.deploy(T721Admin, [accounts[0], ...initialAdmins], initialMinters, tokenAddress, network_id);
     }
 
